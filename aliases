@@ -1,0 +1,318 @@
+#!/bin/bash
+
+
+SCRIPT=$(readlink -f "$0")
+SCRIPTPATH=$(dirname "$SCRIPT")
+### Use colour echo if it exists
+COL=false
+
+dir="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+
+
+get_aliases() {
+    out=""
+    
+    for d in  $SCRIPTPATH/alias/.[^.]* $SCRIPTPATH/alias/*
+    do
+        [ -L "${d%/}" ] && continue
+        [ ! -f $d/command ] && continue
+        [ ! -s $d/command ] && continue
+        out="$out $d"
+    done 
+    echo $out
+}
+
+get_command() {
+    command_name=$1
+    cpath=$SCRIPTPATH/alias/$command_name/command
+    echo `cat $cpath`
+}
+
+get_alias_names() {
+    doEcho cyan "Registered aliases are:"
+    for d in `get_aliases`
+    do
+        base=`basename $d`
+        command=`get_command $base`
+        doEcho yellow "$base: $command"
+    done
+}
+
+doEcho() {
+  c=$1
+  shift 1
+  if [ "$COL" = true ]
+  then
+    cecho -f $c "$@"
+  else
+    echo -e "$@"
+  fi
+}
+
+usage() {
+    doEcho white "Usage: aliases [command] | <args>"
+    doEcho white "Do not use arguments and subcommands at the same time, it won't work!"
+    echo ""
+    doEcho cyan "Subcommands:"
+    doEcho white "    create [name] [command]: Creates a new alias with 'name', that executes 'command'"
+    doEcho white "    sethelp [name]         : Opens up the help file for the alias 'name' in nano"
+    doEcho white "    settags [name]         : Opens up the tags file for the alias 'name' in nano"
+    doEcho white "    togglesudo [name]      : Toggles whether or not the alias 'name' is shown as needing sudo permissions when aliases -a 'name' is called"
+    echo ""
+    doEcho yellow "Arguments:"
+    doEcho white "    -h/--help         : Shows this help message"
+    doEcho white "    -l/--list         : Shows all aliases registered by this script"
+    doEcho white "    -a/--alias [alias]: Shows the help message for 'alias'"
+    doEcho white "    -t/--tag [search] : Shows all aliases with tags like 'search'"
+}
+
+
+
+command_output() {
+    command_name=$1
+    path=$SCRIPTPATH/alias/$command_name/
+    cpath=$path/command
+    hpath=$path/help
+    tpath=$path/tags
+    spath=$path/sudo
+    if [ ! -f $cpath ]
+    then
+        doEcho orange "No alias with name $command_name"
+        exit 1
+    else
+        command=`cat $cpath`
+        doEcho blue "### Alias: $command_name ###"
+        doEcho white "Calls: $command"
+        echo ""
+        doEcho orange "Help:"
+
+        if [ ! -f $hpath ]
+        then
+            doEcho red "No help file found!"
+        else
+            help=`cat $hpath`
+            doEcho white "$help"
+        fi
+
+        echo ""
+        doEcho green "Tags:"
+
+        if [ ! -f $tpath ]
+        then
+            doEcho red "No tags file found!"
+        else
+            help=`cat $tpath`
+            doEcho white "$help"
+        fi
+
+        if [ -f $spath ]
+        then
+            doEcho darkred "Requires sudo"
+        fi
+
+    fi
+
+}
+
+
+
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]
+then
+
+    if [[ ! "$PATH" == *"$dir"* ]]
+    then
+        doEcho red "aliases is not in your path! make sure to add $dir to your path"
+        doEcho yellow "If you're still seeing this error even after doing that, make the export is done before this file is sourced"
+    fi
+
+    for d in `get_aliases`
+    do
+        b=`basename $d`
+        c=`cat $d/command`
+        alias $b=$c
+    done
+
+    export ALIASES_SCRIPTPATH=$SCRIPTPATH
+
+else 
+    if [[ "$PATH" == *"/colour-echo"* ]]
+    then
+        COL=true
+    fi
+
+    if [[ ! "$PATH" == *"$dir"* ]]
+    then
+        doEcho red "aliases is not in your path! make sure to add $dir to your path"
+        exit
+    fi
+
+    if [ ! -z "$1" ] && [[ ! $1 == -* ]]
+    then
+        
+        if [ "$1" == "create" ]
+        then
+            
+            if [ ! -z "$2" ] && [ ! -z "$3" ] && [[ ! "$2" == "-"* ]] && [[ ! "$3" == "-"* ]]
+            then
+                
+
+                if [ ! -d $SCRIPTPATH/alias/$2 ]
+                then
+                    
+                    mkdir $SCRIPTPATH/alias/$2
+                    touch $SCRIPTPATH/alias/$2/command
+                    echo $3 >> $SCRIPTPATH/alias/$2/command
+                    doEcho green "Created alias: $2='$3'"
+                    doEcho yellow "Type _as or source $SCRIPT to update aliases"
+                    exit 0
+                else
+                    doEcho red "Alias with name $2 already exists"
+                    exit 1
+                fi
+                
+            else
+                doEcho red "Please specify a name for the alias and a command"
+                usage
+                exit 1
+            fi
+
+        elif [ "$1" == "sethelp" ]
+        then
+
+            if [ ! -z "$2" ]
+            then
+                if [ -d $SCRIPTPATH/alias/$2 ]
+                then
+                    nano $SCRIPTPATH/alias/$2/help
+                    $SCRIPTPATH/aliases -a $2
+                    exit 0
+                else
+                    doEcho red "No alias: $2"
+                fi
+                
+            else
+                doEcho red "Specify the alias you wish to update"
+                usage
+                exit 1
+            fi
+
+        elif [ "$1" == "settags" ]
+        then
+            if [ ! -z "$2" ]
+            then
+                if [ -d $SCRIPTPATH/alias/$2 ]
+                then
+                    nano $SCRIPTPATH/alias/$2/tags
+                    $SCRIPTPATH/aliases -a $2
+                    exit 0
+                else
+                    doEcho red "No alias: $2"
+                fi
+                
+            else
+                doEcho red "Specify the alias you wish to update"
+                usage
+                exit 1
+            fi
+
+        elif [ "$1" == "togglesudo" ]
+        then
+            if [ ! -z "$2" ]
+            then
+                if [ -d $SCRIPTPATH/alias/$2 ]
+                then
+                    if [ -f $SCRIPTPATH/alias/$2/sudo]
+                    then
+                        rm $SCRIPTPATH/alias/$2/sudo
+                        doEcho green "'$2' no longer marked as sudo!"
+                        exit 0
+                    else
+                        touch $SCRIPTPATH/alias/$2/sudo
+                        doEcho cyan "'$2' no marked as sudo!"
+                        exit 0
+                    fi
+                else
+                    doEcho red "No alias: $2"
+                    usage
+                    exit 1
+                fi
+                
+            else
+                doEcho red "Specify the alias you wish to update"
+                usage
+                exit 1
+            fi
+        else
+            doEcho red "Bad command '$1'"
+            usage
+            exit 1
+        fi
+
+        shift 1
+
+    fi
+
+    if [ -z "$1" ]
+    then
+        usage
+        exit 1
+    fi
+
+    while [ ! -z "$1" ]
+    do
+        case "$1" in
+            -h | --help )
+                doEcho yellow "#### HELP FOR: aliases ####"
+                usage 
+                exit 0
+                break
+                ;;
+            -l | --list )
+                get_alias_names
+                exit 0
+                break
+                ;;
+            -a | --alias )
+                if [ -z "$2" ] || [[ $2 == -* ]]
+                then
+                    doEcho red "a/alias requires an argument!"
+                    exit 4
+                fi
+                command_output $2
+                exit 0
+                break
+                ;;
+            -t | --tag)
+                if [ -z "$2" ] || [[ $2 == -* ]]
+                then
+                    doEcho red "t/tag requires an argument!"
+                    exit 4
+                fi
+                doEcho yellow "Found these aliases with tags like '$2':"
+                for d in `grep -r $2 $SCRIPTPATH/alias/ -l --exclude=*{command,help}`
+                do
+                    dir=`dirname $d`
+                    cname=`basename $dir`
+                    tags=`cat $d`
+                    doEcho green "'$cname' has tags: $tags"
+                done
+                exit 0
+                break
+                ;;
+            -- )
+                shift 1
+                break 
+                ;;
+            * ) 
+                doEcho red "Unrecognised argument $1!"
+                usage
+                exit 3 
+                break 
+                ;;
+        esac
+    done
+
+fi
+
+
+

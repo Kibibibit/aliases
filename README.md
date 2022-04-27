@@ -1,2 +1,4 @@
 # aliases
-A simple pure bash alias manager
+A simple pure bash alias manager.
+
+

@@ -1,0 +1,2 @@
+Creates a new alias with name $2 and command $3.
+Example usage is aliases create _ac 'aliases create'

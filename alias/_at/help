@@ -1,0 +1,2 @@
+Finds all aliases with tags like $1
+Equivilant of aliases -t $1
