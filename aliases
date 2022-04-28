@@ -132,6 +132,7 @@ then
         alias $b=$c
     done
 
+    export ALIASES_ALIASES=`alias`
     export ALIASES_SCRIPTPATH=$SCRIPTPATH
 
 else 
@@ -154,7 +155,15 @@ else
             
             if [ ! -z "$2" ] && [ ! -z "$3" ] && [[ ! "$2" == "-"* ]] && [[ ! "$3" == "-"* ]]
             then
-                
+
+                for a in $ALIASES_ALIASES
+                do
+                    if [[ "$a" == "$2="* ]]
+                    then
+                        doEcho red "Alias with name $2 already exists"
+                        exit 1
+                    fi
+                done
 
                 if [ ! -d $SCRIPTPATH/alias/$2 ]
                 then
