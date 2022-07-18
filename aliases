@@ -230,7 +230,7 @@ else
             then
                 if [ -d $SCRIPTPATH/alias/$2 ]
                 then
-                    if [ -f $SCRIPTPATH/alias/$2/sudo]
+                    if [ -f $SCRIPTPATH/alias/$2/sudo ]
                     then
                         rm $SCRIPTPATH/alias/$2/sudo
                         doEcho green "'$2' no longer marked as sudo!"
